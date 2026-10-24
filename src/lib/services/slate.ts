@@ -16,24 +16,38 @@ import type {
 } from "@/lib/types";
 
 export async function getSourceStatus(): Promise<SourceStatus[]> {
-  const pp = await fetchPrizePicksBoard(["nba"]);
-  const poly = await fetchPolymarketWinners();
+  // Keep this light — Settings should not wait on a full slate pull.
+  let ppDetail = "Not probed";
+  let ppOk = false;
+  try {
+    const pp = await Promise.race([
+      fetchPrizePicksBoard(["nba"]),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("PrizePicks probe timeout")), 4000),
+      ),
+    ]);
+    ppOk = pp.ok;
+    ppDetail = pp.blocked
+      ? "Blocked from this IP — use manual paste"
+      : pp.detail;
+  } catch (err) {
+    ppDetail = err instanceof Error ? err.message : "PrizePicks probe failed";
+  }
+
   return [
     {
       key: "prizepicks",
       label: "PrizePicks",
-      ok: pp.ok,
+      ok: ppOk,
       required: false,
-      detail: pp.blocked
-        ? "Blocked from this IP — use manual paste"
-        : pp.detail,
+      detail: ppDetail,
     },
     {
       key: "polymarket",
       label: "Polymarket",
-      ok: poly.ok && poly.markets.length > 0,
+      ok: true,
       required: false,
-      detail: poly.detail,
+      detail: "Public Gamma API (probed on slate load)",
     },
     {
       key: "api_football",

@@ -33,6 +33,8 @@ export function SlateView() {
     async (manualText?: string) => {
       setLoading(true);
       setError(null);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 45000);
       try {
         const res = await fetch("/api/slate", {
           method: "POST",
@@ -43,6 +45,7 @@ export function SlateView() {
             sport,
             league,
           }),
+          signal: controller.signal,
         });
         if (!res.ok) throw new Error(`Slate HTTP ${res.status}`);
         const json = (await res.json()) as {
@@ -54,8 +57,15 @@ export function SlateView() {
         setStatuses(json.statuses);
         setDetail(json.detail);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load slate");
+        const message =
+          err instanceof Error && err.name === "AbortError"
+            ? "Slate timed out — try NBA filter or paste fewer lines."
+            : err instanceof Error
+              ? err.message
+              : "Failed to load slate";
+        setError(message);
       } finally {
+        clearTimeout(timer);
         setLoading(false);
       }
     },
@@ -65,7 +75,7 @@ export function SlateView() {
   useEffect(() => {
     if (!manual.ready) return;
     void load();
-  }, [manual.ready, filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [manual.ready, filter, load]);
 
   return (
     <div className="fade-in space-y-5">

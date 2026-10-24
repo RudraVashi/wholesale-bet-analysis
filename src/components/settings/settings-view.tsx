@@ -14,9 +14,17 @@ export function SettingsView() {
   async function refresh() {
     setLoading(true);
     try {
-      const res = await fetch("/api/status");
+      const res = await fetch("/api/status", {
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) throw new Error(`Status HTTP ${res.status}`);
       const json = (await res.json()) as { statuses: SourceStatus[] };
       setStatuses(json.statuses);
+      setMessage(null);
+    } catch (err) {
+      setMessage(
+        err instanceof Error ? err.message : "Could not refresh source status",
+      );
     } finally {
       setLoading(false);
     }

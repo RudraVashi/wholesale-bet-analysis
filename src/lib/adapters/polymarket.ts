@@ -210,7 +210,7 @@ async function nbaMatchupQueries(): Promise<string[]> {
       }
     }
     return queries.length > 0
-      ? queries.slice(0, 16)
+      ? queries.slice(0, 8)
       : ["Lakers vs", "Celtics vs", "Knicks vs", "Clippers vs"];
   } catch {
     return ["Lakers vs", "Celtics vs", "Clippers vs", "Knicks vs"];
@@ -221,11 +221,8 @@ const SOCCER_QUERIES = [
   "Arsenal vs",
   "Chelsea vs",
   "Liverpool vs",
-  "Tottenham vs",
-  "Man City vs",
   "Barcelona vs",
   "Real Madrid vs",
-  "Atletico vs",
 ];
 
 export async function fetchPolymarketWinners(): Promise<{
