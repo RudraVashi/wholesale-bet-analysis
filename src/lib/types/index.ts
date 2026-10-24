@@ -100,6 +100,12 @@ export interface FormWindow {
   logs: GameLog[];
 }
 
+export interface FanTake {
+  headline: string;
+  bullets: string[];
+  bottomLine: string;
+}
+
 export interface Scorecard {
   id: string;
   kind: "prop" | "match";
@@ -119,8 +125,10 @@ export interface Scorecard {
   formL10?: FormWindow;
   formL20?: FormWindow;
   offPitch?: OffPitchDigest;
+  fanTake?: FanTake;
   prop?: PropLine;
   match?: MatchMarket;
+  startTime?: string;
   generatedAt: string;
   dataWarnings: string[];
 }
@@ -149,6 +157,8 @@ export interface SlateItem {
   stinker?: boolean;
   recommendedSide?: Side | "pass";
   startTime?: string;
+  gameKey?: string;
+  homeAway?: "home" | "away";
   prop?: PropLine;
   match?: MatchMarket;
   dataWarnings?: string[];

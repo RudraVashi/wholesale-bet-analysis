@@ -1,4 +1,5 @@
 import { dynamicsFactor } from "@/lib/analysis/dynamics";
+import { buildFanTake } from "@/lib/analysis/fan-take";
 import { formFactor } from "@/lib/analysis/form";
 import { matchLineValue, propLineValue } from "@/lib/analysis/line-value";
 import { performanceFactor } from "@/lib/analysis/performance";
@@ -98,12 +99,13 @@ export function buildPropScorecard(input: {
     contrarianFactor(form.lean, offPitch),
   ];
 
+  // Dynamics (home/away + rest) is intentionally heavy — venue matters.
   const weights: Record<string, number> = {
-    form: 0.38,
-    dynamics: 0.12,
-    performance: 0.18,
-    offpitch: 0.12,
-    lineValue: 0.15,
+    form: 0.34,
+    dynamics: 0.22,
+    performance: 0.16,
+    offpitch: 0.1,
+    lineValue: 0.13,
     contrarian: 0.05,
   };
 
@@ -161,11 +163,17 @@ export function buildPropScorecard(input: {
     // already may be capped
   }
 
-  return {
+  if (!prop.homeAway) {
+    warnings.push(
+      "Home/away not set on this prop — paste “home” or “away” when you can; dynamics is weaker without it.",
+    );
+  }
+
+  const scorecard: Scorecard = {
     id: `sc-${prop.id}`,
     kind: "prop",
     title: `${prop.playerName} · ${prop.statLabel}`,
-    subtitle: `${prop.league} · ${prop.line} · ${prop.platform}`,
+    subtitle: `${prop.league} · ${prop.line} · ${prop.platform}${prop.homeAway ? ` · ${prop.homeAway}` : ""}`,
     sport: prop.sport,
     league: prop.league,
     platform: prop.platform,
@@ -181,9 +189,12 @@ export function buildPropScorecard(input: {
     formL20: form.l20,
     offPitch,
     prop,
+    startTime: prop.startTime,
     generatedAt: new Date().toISOString(),
     dataWarnings: warnings,
   };
+  scorecard.fanTake = buildFanTake(scorecard);
+  return scorecard;
 }
 
 export function buildMatchScorecard(input: {
@@ -215,27 +226,40 @@ export function buildMatchScorecard(input: {
     match.impliedAway,
   );
 
+  // Explicit home-field factor (~3–5% win bump in soccer/NBA range)
+  const homeFieldScore = 62;
+  const hasBook = match.homePrice !== 0 || match.awayPrice !== 0;
+  if (!hasBook) {
+    warnings.push(
+      "No live sportsbook price on this fixture — fan take uses form/home edge only.",
+    );
+  }
+
   const factors: FactorScore[] = [
     {
       key: "form",
       label: "Wholesale form",
       score: formScore,
       lean: formLean,
-      why: `Home GD/proxy ${round(homeAvg)} vs away ${round(awayAvg)} (L${Math.min(homeForm.length, 20)})`,
+      why: `Home form proxy ${round(homeAvg)} vs away ${round(awayAvg)} (L${Math.min(homeForm.length, 20)})`,
     },
     {
       key: "dynamics",
-      label: "Team dynamics",
-      score: 55,
-      lean: "neutral",
-      why: "Home/away baked into form proxy",
+      label: "Home / away",
+      score: homeFieldScore,
+      lean: "home",
+      why: `${match.homeTeam} at home vs ${match.awayTeam} on the road`,
+      details: [
+        "Home sides get a real bump — crowd, travel, refereeing tendencies.",
+        "We lean slightly home unless away form is clearly better.",
+      ],
     },
     {
       key: "performance",
       label: "Performance",
       score: formScore,
       lean: formLean,
-      why: `Model home win ~${round(modelHome * 100)}%`,
+      why: `Model home win ~${round(modelHome * 100)}% (includes home bump)`,
     },
     {
       key: "offpitch",
@@ -248,46 +272,55 @@ export function buildMatchScorecard(input: {
     {
       key: "lineValue",
       label: "Line value",
-      score: lineValue.score,
-      lean: lineValue.lean,
-      why: lineValue.why,
+      score: hasBook ? lineValue.score : 50,
+      lean: hasBook ? lineValue.lean : "neutral",
+      why: hasBook ? lineValue.why : "No book line to compare yet",
     },
     contrarianFactor(formLean, offPitch),
   ];
 
+  const weights: Record<string, number> = {
+    form: 0.28,
+    dynamics: 0.22,
+    performance: 0.15,
+    offpitch: 0.12,
+    lineValue: hasBook ? 0.18 : 0.08,
+    contrarian: 0.05,
+  };
+
   const composite = clamp(
     Math.round(
-      factors.reduce((s, f) => {
-        const w =
-          f.key === "form"
-            ? 0.3
-            : f.key === "lineValue"
-              ? 0.25
-              : f.key === "offpitch"
-                ? 0.15
-                : 0.1;
-        return s + f.score * w;
-      }, 0) / 0.9,
+      factors.reduce((s, f) => s + f.score * (weights[f.key] ?? 0), 0),
     ),
   );
 
-  const recommendedSide: Side | "pass" =
+  let recommendedSide: Side | "pass" =
     lineValue.lean === "home" || lineValue.lean === "away"
       ? lineValue.lean
       : formLean === "home" || formLean === "away"
         ? formLean
-        : "pass";
+        : "home"; // slight home lean when thin
+
+  if (!hasBook && formLean === "neutral") {
+    recommendedSide = "home";
+  }
 
   const confidence = clamp(
-    Math.round(composite * 0.75 + (homeForm.length >= 8 ? 10 : 0)),
+    Math.round(
+      composite * 0.7 +
+        (homeForm.length >= 8 ? 10 : 0) +
+        (hasBook ? 8 : 0),
+    ),
   );
-  const stinker = recommendedSide === "pass" || confidence < 55;
+  const stinker = confidence < 52;
 
-  return {
+  const scorecard: Scorecard = {
     id: `sc-${match.id}`,
     kind: "match",
     title: `${match.awayTeam} @ ${match.homeTeam}`,
-    subtitle: `${match.league} · ${match.platform} · H ${round(match.impliedHome * 100)}% / A ${round(match.impliedAway * 100)}%`,
+    subtitle: hasBook
+      ? `${match.league} · ${match.platform} · H ${round(match.impliedHome * 100)}% / A ${round(match.impliedAway * 100)}%`
+      : `${match.league} · ESPN fixture · home lean baked in`,
     sport: match.sport,
     league: match.league,
     platform: match.platform === "polymarket" ? "polymarket" : "sportsbook",
@@ -296,14 +329,17 @@ export function buildMatchScorecard(input: {
     confidence,
     stinker,
     stinkerReason: stinker
-      ? "No clean side vs the market — pass."
+      ? "Confidence still low — home lean isn’t a free square."
       : undefined,
     factors,
     offPitch,
     match,
+    startTime: match.startTime,
     generatedAt: new Date().toISOString(),
     dataWarnings: warnings,
   };
+  scorecard.fanTake = buildFanTake(scorecard);
+  return scorecard;
 }
 
 export function slateEdgeFromScorecard(sc: Scorecard): number {

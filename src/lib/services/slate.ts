@@ -1,5 +1,6 @@
 import { fetchSoccerPlayerLogs, fetchSoccerTeamForm } from "@/lib/adapters/api-football";
 import { fetchNbaPlayerLogs } from "@/lib/adapters/espn-nba";
+import { fetchSoccerFixtures } from "@/lib/adapters/espn-soccer";
 import { fetchNbaMoneylines } from "@/lib/adapters/odds-api";
 import { fetchPolymarketWinners } from "@/lib/adapters/polymarket";
 import { fetchPrizePicksBoard } from "@/lib/adapters/prizepicks";
@@ -8,6 +9,7 @@ import {
   buildPropScorecard,
   slateEdgeFromScorecard,
 } from "@/lib/analysis/scorecard";
+import { gameGroupKey } from "@/lib/format";
 import type {
   LeagueFilter,
   PropLine,
@@ -119,14 +121,14 @@ async function quickPropItem(prop: PropLine): Promise<SlateItem> {
     warnings,
   });
 
-  return {
+  const item: Omit<SlateItem, "gameKey"> & { gameKey?: string } = {
     id: prop.id,
     kind: "prop",
     sport: prop.sport,
     league: prop.league,
     platform: prop.platform,
     title: `${prop.playerName} · ${prop.statLabel}`,
-    subtitle: `${prop.league} · line ${prop.line}`,
+    subtitle: `${prop.league} · line ${prop.line}${prop.homeAway ? ` · ${prop.homeAway}` : ""}`,
     line: prop.line,
     edge: slateEdgeFromScorecard(sc),
     composite: sc.composite,
@@ -134,9 +136,12 @@ async function quickPropItem(prop: PropLine): Promise<SlateItem> {
     stinker: sc.stinker,
     recommendedSide: sc.recommendedSide,
     startTime: prop.startTime,
+    homeAway: prop.homeAway,
     prop,
     dataWarnings: warnings,
   };
+  item.gameKey = gameGroupKey(item);
+  return item;
 }
 
 export async function buildSlate(options: {
@@ -148,14 +153,30 @@ export async function buildSlate(options: {
   const analyzeLimit = options.analyzeLimit ?? 12;
   const statuses = await getSourceStatus();
 
+  const wantSoccer =
+    filter === "all" ||
+    filter === "epl" ||
+    filter === "la_liga" ||
+    filter === "ucl" ||
+    filter === "uel";
+
   const pp = await fetchPrizePicksBoard(["nba", "epl", "la_liga"]);
   const poly = await fetchPolymarketWinners();
   const odds = await fetchNbaMoneylines();
+  const soccerFx = wantSoccer
+    ? await fetchSoccerFixtures(
+        filter === "la_liga"
+          ? ["La Liga"]
+          : filter === "epl"
+            ? ["EPL"]
+            : filter === "ucl"
+              ? ["UCL"]
+              : ["EPL", "La Liga"],
+      )
+    : { markets: [], detail: "Soccer fixtures skipped" };
 
   let props = [...(options.manualProps ?? []), ...pp.props];
-  props = props.filter((p) =>
-    filterLeague(filter, p.league, p.platform),
-  );
+  props = props.filter((p) => filterLeague(filter, p.league, p.platform));
 
   // Cap analysis to protect free quotas / ESPN rate
   const toAnalyze = props.slice(0, analyzeLimit);
@@ -163,7 +184,9 @@ export async function buildSlate(options: {
 
   const analyzed = await Promise.all(toAnalyze.map((p) => quickPropItem(p)));
 
-  async function analyzeMatch(m: (typeof poly.markets)[number]): Promise<SlateItem> {
+  async function analyzeMatch(
+    m: (typeof poly.markets)[number],
+  ): Promise<SlateItem> {
     const warnings: string[] = [];
     let homeForm = {
       logs: [] as Awaited<ReturnType<typeof fetchSoccerTeamForm>>["logs"],
@@ -173,7 +196,7 @@ export async function buildSlate(options: {
       logs: [] as typeof homeForm.logs,
       warnings: [] as string[],
     };
-    if (m.sport === "soccer") {
+    if (m.sport === "soccer" && process.env.API_FOOTBALL_KEY) {
       homeForm = await fetchSoccerTeamForm(m.homeTeam, m.league);
       awayForm = await fetchSoccerTeamForm(m.awayTeam, m.league);
       warnings.push(...homeForm.warnings, ...awayForm.warnings);
@@ -184,14 +207,14 @@ export async function buildSlate(options: {
       awayForm: awayForm.logs,
       warnings,
     });
-    return {
+    const item: SlateItem = {
       id: m.id,
       kind: "match",
       sport: m.sport,
       league: m.league,
       platform: m.platform === "polymarket" ? "polymarket" : "sportsbook",
       title: `${m.awayTeam} @ ${m.homeTeam}`,
-      subtitle: `${m.league} · ${m.platform}`,
+      subtitle: `${m.league} · ${m.platform === "sportsbook" && m.homePrice === 0 ? "ESPN fixture" : m.platform}`,
       edge: slateEdgeFromScorecard(sc),
       composite: sc.composite,
       confidence: sc.confidence,
@@ -201,34 +224,52 @@ export async function buildSlate(options: {
       match: m,
       dataWarnings: warnings,
     };
+    item.gameKey = gameGroupKey(item);
+    return item;
   }
 
   const polyFiltered = poly.markets
     .filter((m) => filterLeague(filter, m.league, m.platform))
-    .slice(0, 8);
+    .slice(0, 6);
   const oddsFiltered = odds.markets
     .filter((m) => filterLeague(filter, m.league, m.platform))
     .slice(0, 8);
+  const soccerFiltered = soccerFx.markets
+    .filter((m) => filterLeague(filter, m.league, m.platform))
+    .slice(0, 12);
 
   const matches = await Promise.all(
-    [...polyFiltered, ...oddsFiltered].map((m) => analyzeMatch(m)),
+    [...soccerFiltered, ...polyFiltered, ...oddsFiltered].map((m) =>
+      analyzeMatch(m),
+    ),
   );
 
-  const lightDeferred: SlateItem[] = deferred.map((p) => ({
-    id: p.id,
-    kind: "prop",
-    sport: p.sport,
-    league: p.league,
-    platform: p.platform,
-    title: `${p.playerName} · ${p.statLabel}`,
-    subtitle: `${p.league} · line ${p.line} · not yet analyzed`,
-    line: p.line,
-    startTime: p.startTime,
-    prop: p,
-    dataWarnings: ["Open dossier to run wholesale analysis"],
+  const lightDeferred: SlateItem[] = deferred.map((p) => {
+    const item: SlateItem = {
+      id: p.id,
+      kind: "prop",
+      sport: p.sport,
+      league: p.league,
+      platform: p.platform,
+      title: `${p.playerName} · ${p.statLabel}`,
+      subtitle: `${p.league} · line ${p.line} · not yet analyzed`,
+      line: p.line,
+      startTime: p.startTime,
+      homeAway: p.homeAway,
+      prop: p,
+      dataWarnings: ["Open dossier to run wholesale analysis"],
+    };
+    item.gameKey = gameGroupKey(item);
+    return item;
+  });
+
+  const analyzedWithKeys = analyzed.map((item) => ({
+    ...item,
+    gameKey: gameGroupKey(item),
+    homeAway: item.prop?.homeAway,
   }));
 
-  const items = [...analyzed, ...matches, ...lightDeferred].sort(
+  const items = [...analyzedWithKeys, ...matches, ...lightDeferred].sort(
     (a, b) => (b.edge ?? -999) - (a.edge ?? -999),
   );
 
@@ -236,6 +277,7 @@ export async function buildSlate(options: {
     pp.blocked ? "PrizePicks blocked — paste lines" : pp.detail,
     poly.detail,
     odds.detail,
+    soccerFx.detail,
   ].join(" · ");
 
   return { items, statuses, detail };

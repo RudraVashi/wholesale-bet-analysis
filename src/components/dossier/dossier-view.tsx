@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { formatKickoff } from "@/lib/format";
 import { useBuilderLegs } from "@/lib/hooks/use-local-store";
 import type { PowerLeg, Scorecard, Side, SlateItem } from "@/lib/types";
 import Link from "next/link";
@@ -111,8 +112,23 @@ export function DossierView() {
             {item?.title ?? "Dossier"}
           </h1>
           <p className="text-sm text-[var(--fg-muted)]">{item?.subtitle}</p>
+          <p className="mono mt-1 text-xs text-[var(--accent)]">
+            {formatKickoff(
+              scorecard?.startTime ?? item?.startTime ?? item?.match?.startTime,
+            )}
+            {item?.homeAway || scorecard?.prop?.homeAway
+              ? ` · ${item?.homeAway ?? scorecard?.prop?.homeAway}`
+              : ""}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => router.push("/glossary")}
+          >
+            Glossary
+          </Button>
           <Button
             onClick={addToPower}
             disabled={
@@ -142,6 +158,34 @@ export function DossierView() {
 
       {scorecard ? (
         <>
+          {scorecard.fanTake ? (
+            <Card className="border-[var(--accent)]/30">
+              <CardHeader>
+                <div className="mono text-xs uppercase tracking-wider text-[var(--accent)]">
+                  Fan take — plain English
+                </div>
+              </CardHeader>
+              <CardBody className="space-y-2">
+                <p className="text-base font-medium">{scorecard.fanTake.headline}</p>
+                <ul className="space-y-1 text-sm text-[var(--fg-muted)]">
+                  {scorecard.fanTake.bullets.map((b) => (
+                    <li key={b}>· {b}</li>
+                  ))}
+                </ul>
+                <p className="text-sm text-[var(--fg)]">
+                  {scorecard.fanTake.bottomLine}
+                </p>
+                <p className="text-[11px] text-[var(--fg-dim)]">
+                  Confused by a word?{" "}
+                  <Link href="/glossary" className="text-[var(--accent)]">
+                    Open the glossary
+                  </Link>
+                  .
+                </p>
+              </CardBody>
+            </Card>
+          ) : null}
+
           <div className="grid gap-3 md:grid-cols-4">
             <Card>
               <CardBody>
