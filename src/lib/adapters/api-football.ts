@@ -18,7 +18,9 @@ function seasonYear() {
   const y = d.getUTCFullYear();
   const m = d.getUTCMonth();
   // European season starts ~Aug
-  return m >= 7 ? y : y - 1;
+  const current = m >= 7 ? y : y - 1;
+  // Free API-Football plans only expose a limited season window (currently thru 2024).
+  return Math.min(current, 2024);
 }
 
 function headers() {
