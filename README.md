@@ -6,8 +6,9 @@ For fun research only — not financial advice.
 
 ## Features
 
-- **Slate** — PrizePicks props (best-effort auto board + manual paste) and Polymarket match winners
-- **Dossier** — factor scorecard with wholesale L10/L20 hit rates vs the line
+- **Slate** — PrizePicks (paste + best-effort board), Polymarket, NBA sportsbook MLs, ESPN EPL/La Liga fixtures; kickoff times in America/Chicago; search / sort / group by game
+- **Dossier** — factor scorecard + plain-English **Fan take**; home/away weighted heavily; L10/L20 form
+- **Glossary** — in-app page + [`GLOSSARY.md`](GLOSSARY.md)
 - **Off-pitch** — Gemini synthesis (injuries, rest, news) — never the sole number-cruncher
 - **Power builder** — 2–4 legs with correlation / stinker warnings
 - **Journal** — localStorage post-mortems (W/L/push + optional stake)
