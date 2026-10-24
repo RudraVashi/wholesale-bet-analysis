@@ -163,47 +163,56 @@ export async function buildSlate(options: {
 
   const analyzed = await Promise.all(toAnalyze.map((p) => quickPropItem(p)));
 
-  const matchItems: Array<Promise<SlateItem>> = [];
-  for (const m of [...poly.markets, ...odds.markets]) {
-    if (!filterLeague(filter, m.league, m.platform)) continue;
-    matchItems.push(
-      (async () => {
-        const warnings: string[] = [];
-        let homeForm = { logs: [] as Awaited<ReturnType<typeof fetchSoccerTeamForm>>["logs"], warnings: [] as string[] };
-        let awayForm = { logs: [] as typeof homeForm.logs, warnings: [] as string[] };
-        if (m.sport === "soccer") {
-          homeForm = await fetchSoccerTeamForm(m.homeTeam, m.league);
-          awayForm = await fetchSoccerTeamForm(m.awayTeam, m.league);
-          warnings.push(...homeForm.warnings, ...awayForm.warnings);
-        }
-        const sc = buildMatchScorecard({
-          match: m,
-          homeForm: homeForm.logs,
-          awayForm: awayForm.logs,
-          warnings,
-        });
-        return {
-          id: m.id,
-          kind: "match" as const,
-          sport: m.sport,
-          league: m.league,
-          platform: m.platform === "polymarket" ? "polymarket" as const : "sportsbook" as const,
-          title: `${m.awayTeam} @ ${m.homeTeam}`,
-          subtitle: `${m.league} · ${m.platform}`,
-          edge: slateEdgeFromScorecard(sc),
-          composite: sc.composite,
-          confidence: sc.confidence,
-          stinker: sc.stinker,
-          recommendedSide: sc.recommendedSide,
-          startTime: m.startTime,
-          match: m,
-          dataWarnings: warnings,
-        };
-      })(),
-    );
+  async function analyzeMatch(m: (typeof poly.markets)[number]): Promise<SlateItem> {
+    const warnings: string[] = [];
+    let homeForm = {
+      logs: [] as Awaited<ReturnType<typeof fetchSoccerTeamForm>>["logs"],
+      warnings: [] as string[],
+    };
+    let awayForm = {
+      logs: [] as typeof homeForm.logs,
+      warnings: [] as string[],
+    };
+    if (m.sport === "soccer") {
+      homeForm = await fetchSoccerTeamForm(m.homeTeam, m.league);
+      awayForm = await fetchSoccerTeamForm(m.awayTeam, m.league);
+      warnings.push(...homeForm.warnings, ...awayForm.warnings);
+    }
+    const sc = buildMatchScorecard({
+      match: m,
+      homeForm: homeForm.logs,
+      awayForm: awayForm.logs,
+      warnings,
+    });
+    return {
+      id: m.id,
+      kind: "match",
+      sport: m.sport,
+      league: m.league,
+      platform: m.platform === "polymarket" ? "polymarket" : "sportsbook",
+      title: `${m.awayTeam} @ ${m.homeTeam}`,
+      subtitle: `${m.league} · ${m.platform}`,
+      edge: slateEdgeFromScorecard(sc),
+      composite: sc.composite,
+      confidence: sc.confidence,
+      stinker: sc.stinker,
+      recommendedSide: sc.recommendedSide,
+      startTime: m.startTime,
+      match: m,
+      dataWarnings: warnings,
+    };
   }
 
-  const matches = await Promise.all(matchItems.slice(0, 10));
+  const polyFiltered = poly.markets
+    .filter((m) => filterLeague(filter, m.league, m.platform))
+    .slice(0, 8);
+  const oddsFiltered = odds.markets
+    .filter((m) => filterLeague(filter, m.league, m.platform))
+    .slice(0, 8);
+
+  const matches = await Promise.all(
+    [...polyFiltered, ...oddsFiltered].map((m) => analyzeMatch(m)),
+  );
 
   const lightDeferred: SlateItem[] = deferred.map((p) => ({
     id: p.id,
