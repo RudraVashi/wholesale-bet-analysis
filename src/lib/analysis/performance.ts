@@ -22,15 +22,13 @@ export function performanceFactor(logs: GameLog[], line: number) {
   const lean =
     delta > 0.75 ? ("over" as const) : delta < -0.75 ? ("under" as const) : ("neutral" as const);
 
-  const details = [
-    `Season avg ${round(avg)} vs line ${line} (Δ ${round(delta)})`,
-    `Volatility σ=${round(std)} over ${logs.length} games`,
-  ];
+  const why = `Season avg ${round(avg)} vs line ${line} (Δ ${round(delta)})`;
+  const details = [`Volatility σ=${round(std)} over ${logs.length} games`];
 
   return {
     score: clamp(Math.round(score)),
     lean,
-    why: details[0]!,
+    why,
     details,
   };
 }
