@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Nested Cursor Origin clone (do not commit)
+wholesale-bet-analysis/
