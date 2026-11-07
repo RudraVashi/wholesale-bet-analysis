@@ -40,7 +40,8 @@ export async function synthesizeOffPitch(input: {
     const { data } = await withCache(cacheKey, 1800, async () => {
       const genAI = new GoogleGenerativeAI(key);
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
+        // Free-tier accounts currently resolve gemini-flash-latest
+        model: "gemini-flash-latest",
       });
 
       const prompt = `You are an off-pitch / off-court analyst for a fun betting research desk (not financial advice).

@@ -17,7 +17,7 @@ export async function analyzeProp(
   const warnings: string[] = [];
   const logs =
     prop.sport === "nba"
-      ? await fetchNbaPlayerLogs(prop.playerName, prop.statType, 20)
+      ? await fetchNbaPlayerLogs(prop.playerName, prop.statType, 30)
       : await fetchSoccerPlayerLogs(
           prop.playerName,
           prop.league,

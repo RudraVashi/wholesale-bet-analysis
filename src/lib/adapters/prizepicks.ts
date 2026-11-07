@@ -163,26 +163,32 @@ export function parseManualProps(
 
   for (const [i, line] of lines.entries()) {
     // Formats:
-    // Player | STAT | 22.5 | over?
-    // Player, STAT, 22.5
-    // Player STAT 22.5
+    // Player | STAT | 22.5 | over | home?
+    // Player, STAT, 22.5, under, away
+    // Player STAT 22.5 over
     const parts = line.includes("|")
       ? line.split("|").map((p) => p.trim())
       : line.includes(",")
         ? line.split(",").map((p) => p.trim())
-        : line.match(/^(.+?)\s+([A-Za-z+]+(?:\s+[A-Za-z]+)*)\s+(\d+(?:\.\d+)?)\s*(over|under)?$/i);
+        : line.match(
+            /^(.+?)\s+([A-Za-z+]+(?:\s+[A-Za-z]+)*)\s+(\d+(?:\.\d+)?)\s*(over|under)?\s*(home|away)?$/i,
+          );
 
     let playerName = "";
     let statRaw = "";
     let lineNum = NaN;
     let side: "over" | "under" | undefined;
+    let homeAway: "home" | "away" | undefined;
 
     if (Array.isArray(parts) && parts.length >= 3 && !("index" in parts)) {
       playerName = parts[0] ?? "";
       statRaw = parts[1] ?? "";
       lineNum = Number(parts[2]);
-      const s = (parts[3] ?? "").toLowerCase();
-      if (s === "over" || s === "under") side = s;
+      for (const raw of parts.slice(3)) {
+        const s = raw.toLowerCase();
+        if (s === "over" || s === "under") side = s;
+        if (s === "home" || s === "away") homeAway = s;
+      }
     } else if (parts && "index" in (parts as RegExpMatchArray)) {
       const m = parts as RegExpMatchArray;
       playerName = m[1]?.trim() ?? "";
@@ -190,6 +196,8 @@ export function parseManualProps(
       lineNum = Number(m[3]);
       const s = (m[4] ?? "").toLowerCase();
       if (s === "over" || s === "under") side = s as "over" | "under";
+      const ha = (m[5] ?? "").toLowerCase();
+      if (ha === "home" || ha === "away") homeAway = ha;
     }
 
     if (!playerName || !statRaw || Number.isNaN(lineNum)) continue;
@@ -205,6 +213,7 @@ export function parseManualProps(
       statLabel: statLabel(statType, statRaw),
       line: lineNum,
       side,
+      homeAway,
       source: "manual",
     });
   }
