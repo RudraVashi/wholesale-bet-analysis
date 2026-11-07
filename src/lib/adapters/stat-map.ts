@@ -13,7 +13,18 @@ const LABEL_MAP: Record<string, StatType> = {
   "fantasy score": "fantasy_score",
   fantasy_score: "fantasy_score",
   "3-pt made": "threes",
+  "3-ptm": "threes",
+  "3ptm": "threes",
+  "3pm": "threes",
+  "3pt": "threes",
+  "3-pt": "threes",
+  "3-pointers": "threes",
   "3-pointers made": "threes",
+  "3 pointers": "threes",
+  "3 pointers made": "threes",
+  "three pointers": "threes",
+  "three pointers made": "threes",
+  "three-pointers made": "threes",
   threes: "threes",
   steals: "steals",
   blocks: "blocks",
@@ -31,7 +42,11 @@ const LABEL_MAP: Record<string, StatType> = {
 
 export function normalizeStatType(raw: string): StatType {
   const key = raw.trim().toLowerCase();
-  return LABEL_MAP[key] ?? "other";
+  if (LABEL_MAP[key]) return LABEL_MAP[key]!;
+  // PrizePicks paste often uses compact labels like "3PTM" / "PTS+REBS+ASTS"
+  const compact = key.replace(/[\s_]+/g, "");
+  if (LABEL_MAP[compact]) return LABEL_MAP[compact]!;
+  return "other";
 }
 
 export function statLabel(stat: StatType, fallback?: string): string {
