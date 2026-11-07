@@ -38,12 +38,6 @@ export async function synthesizeOffPitch(input: {
 
   try {
     const { data } = await withCache(cacheKey, 1800, async () => {
-      const genAI = new GoogleGenerativeAI(key);
-      const model = genAI.getGenerativeModel({
-        // Free-tier accounts currently resolve gemini-flash-latest
-        model: "gemini-flash-latest",
-      });
-
       const prompt = `You are an off-pitch / off-court analyst for a fun betting research desk (not financial advice).
 Sport: ${input.sport}
 Subject: ${input.subject}
@@ -62,8 +56,7 @@ Using your knowledge of recent public news (injuries, suspensions, lineup change
 }
 If unsure, lean neutral and severity low. Do not invent specific injury statuses you are not confident about.`;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = await generateWithFallback(key, prompt);
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         return fallbackDigest("Gemini returned non-JSON off-pitch note.");
@@ -88,4 +81,63 @@ If unsure, lean neutral and severity low. Do not invent specific injury statuses
       err instanceof Error ? `Off-pitch failed: ${err.message}` : "Off-pitch failed",
     );
   }
+}
+
+/**
+ * Prefer models that still accept new free-tier keys.
+ * gemini-2.5-flash / gemini-flash-latest often 404 or 503 for new accounts.
+ */
+const GEMINI_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-3.8-flash",
+  "gemini-flash-latest",
+];
+
+const GEMINI_ATTEMPT_MS = 20_000;
+
+function isRetryableGeminiError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /404|503|429|high demand|unavailable|overloaded|no longer available|try again|not found|aborted|timed out/i.test(
+    message,
+  );
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function generateWithFallback(apiKey: string, prompt: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  let lastError: unknown;
+  for (const modelName of GEMINI_MODELS) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await withTimeout(
+        model.generateContent(prompt),
+        GEMINI_ATTEMPT_MS,
+        modelName,
+      );
+      return result.response.text();
+    } catch (err) {
+      lastError = err;
+      if (!isRetryableGeminiError(err)) throw err;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("All Gemini models failed for off-pitch");
 }

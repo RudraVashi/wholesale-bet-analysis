@@ -76,6 +76,8 @@ function extractStat(
         "threepointfieldgoalsmade-threepointfieldgoalsattempted",
         "threepointfieldgoalsmade",
         "3pm",
+        "3pt",
+        "3ptm",
       );
     case "steals":
       return stl;
