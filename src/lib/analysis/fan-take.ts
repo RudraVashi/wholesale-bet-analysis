@@ -23,6 +23,9 @@ export function buildFanTake(sc: Scorecard): {
     bullets.push(
       `Their recent average is about ${round(w.avg)} — compare that to the number ${sc.line}.`,
     );
+    if (sc.lastFive && sc.lastFive.sample > 0 && sc.nextGame) {
+      bullets.push(sc.nextGame.summary);
+    }
   }
 
   if (sc.kind === "match" && sc.match) {

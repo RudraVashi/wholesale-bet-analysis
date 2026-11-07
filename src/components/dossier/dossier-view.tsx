@@ -279,6 +279,55 @@ export function DossierView() {
             ))}
           </div>
 
+          {scorecard.kind === "prop" ? (
+            <Card>
+              <CardHeader>
+                <div className="mono text-xs uppercase tracking-wider text-[var(--accent)]">
+                  Last 5
+                </div>
+              </CardHeader>
+              <CardBody className="space-y-3">
+                {scorecard.lastFive && scorecard.lastFive.sample > 0 ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div
+                        className="flex items-center gap-1.5"
+                        aria-label={`Last 5, oldest to newest, ${scorecard.lastFive.hits} of ${scorecard.lastFive.sample} hit`}
+                      >
+                        {[...scorecard.lastFive.games].reverse().map((game, index) => (
+                          <span
+                            key={`${game.date}-${index}`}
+                            title={`${game.date || "undated"} vs ${game.opponent}: ${game.value}${game.hit ? " hit" : " miss"}`}
+                            className={`h-3 w-3 rounded-full ${game.hit ? "bg-[var(--good)]" : "bg-[var(--fg-dim)]"}`}
+                          />
+                        ))}
+                      </div>
+                      <div className="mono text-sm">
+                        {scorecard.lastFive.hits}/{scorecard.lastFive.sample}
+                        <span className="ml-2 text-[var(--fg-dim)]">
+                          {scorecard.lastFive.side}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[var(--fg-dim)]">
+                      Oldest on the left, newest on the right. Tonight is not
+                      in this strip.
+                    </p>
+                    {scorecard.nextGame ? (
+                      <p className="text-sm text-[var(--fg-muted)]">
+                        {scorecard.nextGame.summary}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-[var(--fg-muted)]">
+                    No recent games on file for a last-5 read.
+                  </p>
+                )}
+              </CardBody>
+            </Card>
+          ) : null}
+
           {(scorecard.formL10 || scorecard.formL20) && (
             <Card>
               <CardHeader>

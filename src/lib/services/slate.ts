@@ -104,7 +104,7 @@ async function quickPropItem(prop: PropLine): Promise<SlateItem> {
   let logs = { logs: [] as Awaited<ReturnType<typeof fetchNbaPlayerLogs>>["logs"], warnings: [] as string[] };
 
   if (prop.sport === "nba") {
-    logs = await fetchNbaPlayerLogs(prop.playerName, prop.statType, 20);
+    logs = await fetchNbaPlayerLogs(prop.playerName, prop.statType, 30);
   } else {
     logs = await fetchSoccerPlayerLogs(
       prop.playerName,
@@ -137,6 +137,8 @@ async function quickPropItem(prop: PropLine): Promise<SlateItem> {
     recommendedSide: sc.recommendedSide,
     startTime: prop.startTime,
     homeAway: prop.homeAway,
+    l5Hits: sc.lastFive?.hits,
+    l5Sample: sc.lastFive?.sample,
     prop,
     dataWarnings: warnings,
   };

@@ -17,6 +17,8 @@ Plain definitions for the jargon on the desk. Also see the **Fan take** box on e
 | Term | Meaning |
 |------|---------|
 | **Wholesale form (L10 / L20)** | How often the player cleared (or stayed under) this number in their last 10 / 20 games. “Wholesale” = big recent sample, not one random game. |
+| **Last 5** | Hit or miss in each of the five newest games on file, the same kind of strip PrizePicks shows. Tonight’s game is not in it. |
+| **Next game after a streak** | Inside this log, take every game that was played right after a given last-5 result (for example 5 hits in the five before it) and count how often that next game hit. Fewer than 3 of those next games is too thin to lean on. |
 | **Hit rate** | Percent of those games that would have won the over (or under). |
 | **Team dynamics / Home-away** | Home vs away splits, rest, back-to-backs. Venue matters a lot. |
 | **Performance** | Season-ish average vs the line + how streaky they are. |
@@ -56,6 +58,6 @@ Plain definitions for the jargon on the desk. Also see the **Fan take** box on e
 
 1. Read the **Fan take** first.  
 2. Check **kickoff time** and **home/away**.  
-3. Glance at **L10 hit rate** vs the line.  
+3. Glance at **L10 hit rate** and the **Last 5** dots vs the line. If the next-game note says the sample is thin, don’t treat a hot streak as a tell.  
 4. If **stinker** is on or confidence is low → default to pass.  
 5. Only then dig into the factor cards.

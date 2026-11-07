@@ -100,6 +100,38 @@ export interface FormWindow {
   logs: GameLog[];
 }
 
+export interface LastFiveGame {
+  date: string;
+  opponent: string;
+  value: number;
+  hit: boolean;
+}
+
+/** PrizePicks-style strip. Games are newest-first; tonight is not included. */
+export interface LastFive {
+  side: "over" | "under";
+  sample: number;
+  hits: number;
+  games: LastFiveGame[];
+}
+
+export interface NextGameBucket {
+  /** How many of the five games before the outcome game cleared the line. */
+  priorHits: number;
+  nextGames: number;
+  nextHits: number;
+  /** Fewer than 3 next games — do not treat the rate as a lean. */
+  thin: boolean;
+}
+
+export interface NextGameAfterStreak {
+  /** Hit count in the current last 5. Null when the log has fewer than 5 games. */
+  currentPriorHits: number | null;
+  buckets: NextGameBucket[];
+  matching?: NextGameBucket;
+  summary: string;
+}
+
 export interface FanTake {
   headline: string;
   bullets: string[];
@@ -124,6 +156,8 @@ export interface Scorecard {
   factors: FactorScore[];
   formL10?: FormWindow;
   formL20?: FormWindow;
+  lastFive?: LastFive;
+  nextGame?: NextGameAfterStreak;
   offPitch?: OffPitchDigest;
   fanTake?: FanTake;
   prop?: PropLine;
@@ -159,6 +193,9 @@ export interface SlateItem {
   startTime?: string;
   gameKey?: string;
   homeAway?: "home" | "away";
+  /** Hits in the newest games we have, up to 5. Absent when the prop was not analyzed. */
+  l5Hits?: number;
+  l5Sample?: number;
   prop?: PropLine;
   match?: MatchMarket;
   dataWarnings?: string[];

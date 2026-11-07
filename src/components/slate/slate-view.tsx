@@ -382,6 +382,11 @@ function SlateRow({
               <Badge tone="accent">{item.homeAway}</Badge>
             ) : null}
             {item.stinker ? <Badge tone="warn">stinker</Badge> : null}
+            {item.l5Sample ? (
+              <Badge tone={item.l5Hits === item.l5Sample ? "good" : "muted"}>
+                L5 {item.l5Hits}/{item.l5Sample}
+              </Badge>
+            ) : null}
             <SideBadge side={item.recommendedSide} />
           </div>
           <div className="mt-1 truncate text-sm font-medium group-hover:text-[var(--accent)]">

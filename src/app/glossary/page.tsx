@@ -19,6 +19,14 @@ const SECTIONS: { title: string; rows: [string, string][] }[] = [
         "Wholesale form (L10/L20)",
         "Hit rate vs the line over the last 10 / 20 games.",
       ],
+      [
+        "Last 5",
+        "Hit or miss in each of the five newest games we have, the same strip PrizePicks shows. Tonight’s game is not included.",
+      ],
+      [
+        "Next game after a streak",
+        "How often the game after a given last-5 hit count (for example 5/5) actually hit, counted inside this player’s log. Fewer than 3 examples is too thin to lean on.",
+      ],
       ["Hit rate", "% of those games that would have won the side."],
       ["Home / away (dynamics)", "Venue + rest. We weight this heavily."],
       ["Performance", "Average vs the line and how streaky they are."],

@@ -1,6 +1,6 @@
 import { dynamicsFactor } from "@/lib/analysis/dynamics";
 import { buildFanTake } from "@/lib/analysis/fan-take";
-import { formFactor } from "@/lib/analysis/form";
+import { formFactor, lastFive, nextGameAfterStreak } from "@/lib/analysis/form";
 import { matchLineValue, propLineValue } from "@/lib/analysis/line-value";
 import { performanceFactor } from "@/lib/analysis/performance";
 import { clamp, round } from "@/lib/utils";
@@ -50,6 +50,14 @@ export function buildPropScorecard(input: {
   if (logs.length === 0) warnings.push("No wholesale game logs — confidence capped.");
 
   const form = formFactor(logs, prop.line, prop.side);
+  const streakSide =
+    prop.side === "under" || prop.side === "over"
+      ? prop.side
+      : form.lean === "under"
+        ? "under"
+        : "over";
+  const recentFive = lastFive(logs, prop.line, streakSide);
+  const nextGame = nextGameAfterStreak(logs, prop.line, streakSide);
   const dynamics = dynamicsFactor(logs, prop.homeAway);
   const performance = performanceFactor(logs, prop.line);
   const lineValue = propLineValue(
@@ -64,6 +72,7 @@ export function buildPropScorecard(input: {
       score: form.score,
       lean: form.lean,
       why: form.why,
+      details: recentFive.sample > 0 ? [nextGame.summary] : undefined,
     },
     {
       key: "dynamics",
@@ -187,6 +196,8 @@ export function buildPropScorecard(input: {
     factors,
     formL10: form.l10,
     formL20: form.l20,
+    lastFive: recentFive,
+    nextGame,
     offPitch,
     prop,
     startTime: prop.startTime,

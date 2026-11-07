@@ -1,5 +1,102 @@
 import { round } from "@/lib/utils";
-import type { FormWindow, GameLog, Side } from "@/lib/types";
+import type {
+  FormWindow,
+  GameLog,
+  LastFive,
+  NextGameAfterStreak,
+  Side,
+} from "@/lib/types";
+
+/** Same hit rule as L10: over means strictly above the line. A push misses. */
+export function clearedLine(
+  value: number,
+  line: number,
+  side: "over" | "under",
+): boolean {
+  return side === "under" ? value < line : value > line;
+}
+
+function asOverUnder(side: Side | "over" | "under" | undefined): "over" | "under" {
+  return side === "under" ? "under" : "over";
+}
+
+/** Newest five games. `logs[0]` is the most recent game we have, not tonight. */
+export function lastFive(
+  logs: GameLog[],
+  line: number,
+  side: Side = "over",
+): LastFive {
+  const lean = asOverUnder(side);
+  const games = logs.slice(0, 5).map((log) => ({
+    date: log.date,
+    opponent: log.opponent,
+    value: log.value,
+    hit: clearedLine(log.value, line, lean),
+  }));
+  const hits = games.filter((game) => game.hit).length;
+  return { side: lean, sample: games.length, hits, games };
+}
+
+/**
+ * For each older game, count hits in the five games before it, then whether
+ * that game itself hit. Buckets are prior-hit counts 0 through 5.
+ * A bucket with fewer than 3 next games is too thin to lean on.
+ */
+export function nextGameAfterStreak(
+  logs: GameLog[],
+  line: number,
+  side: Side = "over",
+): NextGameAfterStreak {
+  const lean = asOverUnder(side);
+  const tallies = Array.from({ length: 6 }, () => ({
+    nextGames: 0,
+    nextHits: 0,
+  }));
+
+  for (let i = 0; i + 5 < logs.length; i++) {
+    const prior = logs.slice(i + 1, i + 6);
+    const priorHits = prior.filter((log) =>
+      clearedLine(log.value, line, lean),
+    ).length;
+    const bucket = tallies[priorHits]!;
+    bucket.nextGames += 1;
+    if (clearedLine(logs[i]!.value, line, lean)) bucket.nextHits += 1;
+  }
+
+  const buckets = tallies.map((tally, priorHits) => ({
+    priorHits,
+    nextGames: tally.nextGames,
+    nextHits: tally.nextHits,
+    thin: tally.nextGames < 3,
+  }));
+
+  const currentPriorHits = logs.length >= 5 ? lastFive(logs, line, lean).hits : null;
+  const matching =
+    currentPriorHits == null ? undefined : buckets[currentPriorHits];
+
+  return {
+    currentPriorHits,
+    buckets,
+    matching,
+    summary: streakSummary(currentPriorHits, matching),
+  };
+}
+
+function streakSummary(
+  currentPriorHits: number | null,
+  matching: NextGameAfterStreak["matching"],
+): string {
+  if (currentPriorHits == null || !matching) {
+    return "Fewer than 5 recent games on file, so there is no full last-5 to compare with the next game.";
+  }
+  if (matching.nextGames === 0) {
+    return `Last 5 are ${currentPriorHits}/5. This log never shows a game played right after a ${currentPriorHits}/5 run.`;
+  }
+  if (matching.thin) {
+    return `Last 5 are ${currentPriorHits}/5. The next game after a ${currentPriorHits}/5 run shows up ${matching.nextGames} time${matching.nextGames === 1 ? "" : "s"} here — too few to lean on.`;
+  }
+  return `Last 5 are ${currentPriorHits}/5. In this log, the game after a ${currentPriorHits}/5 run hit ${matching.nextHits} of ${matching.nextGames}.`;
+}
 
 function median(nums: number[]) {
   if (nums.length === 0) return 0;
