@@ -72,7 +72,10 @@ export function buildPropScorecard(input: {
       score: form.score,
       lean: form.lean,
       why: form.why,
-      details: recentFive.sample > 0 ? [nextGame.summary] : undefined,
+      details:
+        recentFive.sample > 0
+          ? [nextGame.consecutive.summary, nextGame.lastFiveCount.summary]
+          : undefined,
     },
     {
       key: "dynamics",

@@ -24,8 +24,12 @@ const SECTIONS: { title: string; rows: [string, string][] }[] = [
         "Hit or miss in each of the five newest games we have, the same strip PrizePicks shows. Tonight’s game is not included.",
       ],
       [
-        "Next game after a streak",
-        "How often the game after a given last-5 hit count (for example 5/5) actually hit, counted inside this player’s log. Fewer than 3 examples is too thin to lean on.",
+        "Consecutive streak",
+        "How many newest games in a row cleared the pasted side (over or under). We then ask: after that many straight hits historically, how often did the next game continue vs break.",
+      ],
+      [
+        "L5 count read",
+        "Secondary: when the five before a game had the same hit count as today’s L5 (not necessarily consecutive), how often the next game hit. Fewer than 3 examples is too thin to lean on.",
       ],
       ["Hit rate", "% of those games that would have won the side."],
       ["Home / away (dynamics)", "Venue + rest. We weight this heavily."],

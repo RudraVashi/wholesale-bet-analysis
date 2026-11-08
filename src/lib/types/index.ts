@@ -15,8 +15,12 @@ export type StatType =
   | "rebounds"
   | "assists"
   | "pra"
+  | "pts_asts"
+  | "pts_rebs"
+  | "rebs_asts"
   | "fantasy_score"
   | "threes"
+  | "fg_made"
   | "steals"
   | "blocks"
   | "turnovers"
@@ -124,11 +128,30 @@ export interface NextGameBucket {
   thin: boolean;
 }
 
-export interface NextGameAfterStreak {
-  /** Hit count in the current last 5. Null when the log has fewer than 5 games. */
+/** Consecutive hits ending at the newest game; next-game continuation study. */
+export interface ConsecutiveStreakStudy {
+  side: "over" | "under";
+  currentStreak: number;
+  nextGames: number;
+  /** Times the next game also hit (streak continued). */
+  nextHits: number;
+  thin: boolean;
+  summary: string;
+}
+
+export interface LastFiveCountStudy {
   currentPriorHits: number | null;
   buckets: NextGameBucket[];
   matching?: NextGameBucket;
+  summary: string;
+}
+
+export interface NextGameAfterStreak {
+  /** Primary: consecutive overs/unders into tonight. */
+  consecutive: ConsecutiveStreakStudy;
+  /** Secondary: L5 hit-count setup (not necessarily consecutive). */
+  lastFiveCount: LastFiveCountStudy;
+  /** Combined plain-English lines for fan take / form details. */
   summary: string;
 }
 

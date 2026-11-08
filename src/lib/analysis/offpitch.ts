@@ -38,14 +38,27 @@ export async function synthesizeOffPitch(input: {
 
   try {
     const { data } = await withCache(cacheKey, 1800, async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const nbaSeason =
+        input.sport === "nba"
+          ? (() => {
+              const d = new Date();
+              const y = d.getUTCFullYear();
+              const m = d.getUTCMonth(); // 0-based
+              // NBA season label flips around August
+              return m >= 7 ? `${y}-${String(y + 1).slice(2)}` : `${y - 1}-${String(y).slice(2)}`;
+            })()
+          : null;
       const prompt = `You are an off-pitch / off-court analyst for a fun betting research desk (not financial advice).
+Today's date (UTC): ${today}
+${nbaSeason ? `Current NBA season label: ${nbaSeason}` : ""}
 Sport: ${input.sport}
 Subject: ${input.subject}
 Team: ${input.team ?? "n/a"}
 Opponent: ${input.opponent ?? "n/a"}
 Bet context: ${input.context}
 
-Using your knowledge of recent public news (injuries, suspensions, lineup changes, rest/travel, coaching, locker-room, transfers/trades, weather for soccer), return STRICT JSON only:
+Using only knowledge you are confident is still true as of ${today}, consider injuries, suspensions, lineup changes, rest/travel, coaching, locker-room, transfers/trades, weather for soccer. Return STRICT JSON only:
 {
   "score": 0-100 (50=neutral; higher = clearer actionable signal),
   "lean": "over"|"under"|"home"|"away"|"neutral",
@@ -54,7 +67,10 @@ Using your knowledge of recent public news (injuries, suspensions, lineup change
   "severity": "low"|"medium"|"high",
   "sources": ["optional outlet names"]
 }
-If unsure, lean neutral and severity low. Do not invent specific injury statuses you are not confident about.`;
+Hard rules:
+- Do NOT invent or guess current injury statuses.
+- Do NOT cite last year's season as current (e.g. do not say someone is out for 2024-25 when today is ${today}).
+- If your knowledge may be stale or you are unsure whether a player is available now, lean neutral, severity low, and say you lack a confirmed current update — do not state outdated injuries as fact.`;
 
       const text = await generateWithFallback(key, prompt);
       const jsonMatch = text.match(/\{[\s\S]*\}/);

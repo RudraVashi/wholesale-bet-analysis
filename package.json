@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start -p 43127",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --import ./src/lib/analysis/form-test-hooks.mjs --test src/lib/analysis/form.test.ts"
+    "test": "tsx --test src/lib/analysis/form.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -31,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

@@ -18,7 +18,9 @@ Plain definitions for the jargon on the desk. Also see the **Fan take** box on e
 |------|---------|
 | **Wholesale form (L10 / L20)** | How often the player cleared (or stayed under) this number in their last 10 / 20 games. “Wholesale” = big recent sample, not one random game. |
 | **Last 5** | Hit or miss in each of the five newest games on file, the same kind of strip PrizePicks shows. Tonight’s game is not in it. |
-| **Next game after a streak** | Inside this log, take every game that was played right after a given last-5 result (for example 5 hits in the five before it) and count how often that next game hit. Fewer than 3 of those next games is too thin to lean on. |
+| **Consecutive streak** | How many newest games in a row cleared the pasted side (over or under). Primary next-game study: after that many straight hits historically, how often did the following game continue vs break. |
+| **L5 count read** | Secondary: when the five before a game had the same hit *count* as today’s L5 (not necessarily consecutive), how often the next game hit. Useful when form is hot but messy. |
+| **Next game after a streak** | Cover term for the consecutive + L5 count studies above. Fewer than 3 historical next games is too thin to lean on. |
 | **Hit rate** | Percent of those games that would have won the over (or under). |
 | **Team dynamics / Home-away** | Home vs away splits, rest, back-to-backs. Venue matters a lot. |
 | **Performance** | Season-ish average vs the line + how streaky they are. |
