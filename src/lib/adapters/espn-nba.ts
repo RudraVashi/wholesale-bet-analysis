@@ -87,6 +87,19 @@ function extractStat(
       return tov;
     case "pra":
       return pts + reb + ast;
+    case "pts_asts":
+      return pts + ast;
+    case "pts_rebs":
+      return pts + reb;
+    case "rebs_asts":
+      return reb + ast;
+    case "fg_made":
+      return num(
+        "fieldgoalsmade-fieldgoalsattempted",
+        "fieldgoalsmade",
+        "fgm",
+        "fg",
+      );
     case "fantasy_score":
       return nbaFantasy({ pts, reb, ast, stl, blk, tov });
     default:

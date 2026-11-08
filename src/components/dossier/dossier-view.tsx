@@ -314,9 +314,12 @@ export function DossierView() {
                       in this strip.
                     </p>
                     {scorecard.nextGame ? (
-                      <p className="text-sm text-[var(--fg-muted)]">
-                        {scorecard.nextGame.summary}
-                      </p>
+                      <div className="space-y-2 text-sm text-[var(--fg-muted)]">
+                        <p>{scorecard.nextGame.consecutive.summary}</p>
+                        <p className="text-xs text-[var(--fg-dim)]">
+                          {scorecard.nextGame.lastFiveCount.summary}
+                        </p>
+                      </div>
                     ) : null}
                   </>
                 ) : (

@@ -1,8 +1,10 @@
 import { round } from "@/lib/utils";
 import type {
+  ConsecutiveStreakStudy,
   FormWindow,
   GameLog,
   LastFive,
+  LastFiveCountStudy,
   NextGameAfterStreak,
   Side,
 } from "@/lib/types";
@@ -37,10 +39,27 @@ export function lastFive(
   return { side: lean, sample: games.length, hits, games };
 }
 
+/** How many newest games in a row cleared the line (side-aware). */
+export function consecutiveHitStreak(
+  logs: GameLog[],
+  line: number,
+  side: Side = "over",
+): number {
+  const lean = asOverUnder(side);
+  let streak = 0;
+  for (const log of logs) {
+    if (!clearedLine(log.value, line, lean)) break;
+    streak += 1;
+  }
+  return streak;
+}
+
 /**
- * For each older game, count hits in the five games before it, then whether
- * that game itself hit. Buckets are prior-hit counts 0 through 5.
- * A bucket with fewer than 3 next games is too thin to lean on.
+ * Primary study (A): current consecutive over/under streak → did the next
+ * game historically continue that streak?
+ *
+ * Secondary study (B): L5 hit-count setup → what happened on the next game?
+ * Kept because hot-but-messy form (e.g. 4/5 with streak 1) is a different signal.
  */
 export function nextGameAfterStreak(
   logs: GameLog[],
@@ -48,6 +67,77 @@ export function nextGameAfterStreak(
   side: Side = "over",
 ): NextGameAfterStreak {
   const lean = asOverUnder(side);
+  const consecutive = consecutiveStreakStudy(logs, line, lean);
+  const lastFiveCount = lastFiveCountStudy(logs, line, lean);
+  return {
+    consecutive,
+    lastFiveCount,
+    summary: [consecutive.summary, lastFiveCount.summary]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
+function consecutiveStreakStudy(
+  logs: GameLog[],
+  line: number,
+  side: "over" | "under",
+): ConsecutiveStreakStudy {
+  const currentStreak = consecutiveHitStreak(logs, line, side);
+  let nextGames = 0;
+  let nextHits = 0;
+
+  if (currentStreak > 0) {
+    for (let i = 0; i + currentStreak < logs.length; i++) {
+      const prior = logs.slice(i + 1, i + 1 + currentStreak);
+      if (
+        prior.length < currentStreak ||
+        prior.some((log) => !clearedLine(log.value, line, side))
+      ) {
+        continue;
+      }
+      nextGames += 1;
+      if (clearedLine(logs[i]!.value, line, side)) nextHits += 1;
+    }
+  }
+
+  const thin = currentStreak > 0 && nextGames < 3;
+  return {
+    side,
+    currentStreak,
+    nextGames,
+    nextHits,
+    thin,
+    summary: consecutiveSummary(side, currentStreak, nextGames, nextHits, thin),
+  };
+}
+
+function consecutiveSummary(
+  side: "over" | "under",
+  currentStreak: number,
+  nextGames: number,
+  nextHits: number,
+  thin: boolean,
+): string {
+  const sideWord = side === "under" ? "under" : "over";
+  if (currentStreak === 0) {
+    return `No active ${sideWord} streak — the newest game missed the ${sideWord}.`;
+  }
+  if (nextGames === 0) {
+    return `On a ${currentStreak}-game ${sideWord} streak. This log never shows a game played right after ${currentStreak} straight ${sideWord}s.`;
+  }
+  if (thin) {
+    return `On a ${currentStreak}-game ${sideWord} streak. After ${currentStreak} straight ${sideWord}s, the next game shows up ${nextGames} time${nextGames === 1 ? "" : "s"} here — too few to lean on.`;
+  }
+  const broke = nextGames - nextHits;
+  return `On a ${currentStreak}-game ${sideWord} streak. After ${currentStreak} straight ${sideWord}s, the next game continued ${nextHits} of ${nextGames} times (broke ${broke}).`;
+}
+
+function lastFiveCountStudy(
+  logs: GameLog[],
+  line: number,
+  side: "over" | "under",
+): LastFiveCountStudy {
   const tallies = Array.from({ length: 6 }, () => ({
     nextGames: 0,
     nextHits: 0,
@@ -56,11 +146,11 @@ export function nextGameAfterStreak(
   for (let i = 0; i + 5 < logs.length; i++) {
     const prior = logs.slice(i + 1, i + 6);
     const priorHits = prior.filter((log) =>
-      clearedLine(log.value, line, lean),
+      clearedLine(log.value, line, side),
     ).length;
     const bucket = tallies[priorHits]!;
     bucket.nextGames += 1;
-    if (clearedLine(logs[i]!.value, line, lean)) bucket.nextHits += 1;
+    if (clearedLine(logs[i]!.value, line, side)) bucket.nextHits += 1;
   }
 
   const buckets = tallies.map((tally, priorHits) => ({
@@ -70,7 +160,8 @@ export function nextGameAfterStreak(
     thin: tally.nextGames < 3,
   }));
 
-  const currentPriorHits = logs.length >= 5 ? lastFive(logs, line, lean).hits : null;
+  const currentPriorHits =
+    logs.length >= 5 ? lastFive(logs, line, side).hits : null;
   const matching =
     currentPriorHits == null ? undefined : buckets[currentPriorHits];
 
@@ -78,24 +169,24 @@ export function nextGameAfterStreak(
     currentPriorHits,
     buckets,
     matching,
-    summary: streakSummary(currentPriorHits, matching),
+    summary: lastFiveCountSummary(currentPriorHits, matching),
   };
 }
 
-function streakSummary(
+function lastFiveCountSummary(
   currentPriorHits: number | null,
-  matching: NextGameAfterStreak["matching"],
+  matching: LastFiveCountStudy["matching"],
 ): string {
   if (currentPriorHits == null || !matching) {
-    return "Fewer than 5 recent games on file, so there is no full last-5 to compare with the next game.";
+    return "Fewer than 5 recent games on file for an L5 count read.";
   }
   if (matching.nextGames === 0) {
-    return `Last 5 are ${currentPriorHits}/5. This log never shows a game played right after a ${currentPriorHits}/5 run.`;
+    return `L5 are ${currentPriorHits}/5 — this log never shows a next game after that count.`;
   }
   if (matching.thin) {
-    return `Last 5 are ${currentPriorHits}/5. The next game after a ${currentPriorHits}/5 run shows up ${matching.nextGames} time${matching.nextGames === 1 ? "" : "s"} here — too few to lean on.`;
+    return `L5 are ${currentPriorHits}/5 — next-game sample after that count is ${matching.nextGames}, too thin to lean on.`;
   }
-  return `Last 5 are ${currentPriorHits}/5. In this log, the game after a ${currentPriorHits}/5 run hit ${matching.nextHits} of ${matching.nextGames}.`;
+  return `L5 are ${currentPriorHits}/5 — after that count, the next game hit ${matching.nextHits} of ${matching.nextGames}.`;
 }
 
 function median(nums: number[]) {
